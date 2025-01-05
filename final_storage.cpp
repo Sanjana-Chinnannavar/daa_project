@@ -1,112 +1,124 @@
 #include <iostream>
-#include <queue>
 #include <vector>
+#include <string>
 #include <algorithm>
-using namespace std;
-// Structure for supply items
+
 struct Supply {
     std::string name;
     int quantity;
-    int priority; // Higher values indicate higher priority
-    double cost;  // Cost per unit of the supply in USD
+    double cost, storageSpaceRequired;  // Storage space required in square feet
+    std::string storageLocation;
 
     bool operator<(const Supply& other) const {
-        return priority < other.priority; // Sorting by priority in descending order
+        return quantity < other.quantity;  // Sorting by quantity for optimization
     }
 };
 
-// Function to display supply items
-void displaySupplies(const std::vector<Supply>& supplies) {
-    std::cout << "\nCurrent Supplies:\n";
+void displayStorage(const std::vector<Supply>& supplies) {
+    std::cout << "\nCurrent Storage:\n";
     for (const auto& supply : supplies) {
-        std::cout << "Item: " << supply.name
-                  << ", Quantity: " << supply.quantity
-                  << ", Priority: " << supply.priority
-                  << ", Cost (in INR): " << (supply.cost * 80) << "\n"; // Convert cost to INR
+        std::cout << "Item: " << supply.name << ", Qty: " << supply.quantity
+                  << ", Cost: INR " << (supply.cost * 80) << ", Location: " << supply.storageLocation
+                  << ", Space: " << supply.storageSpaceRequired << " ft^2\n";
     }
 }
 
-// Function to process requests using priority queue and update storage
-void processRequests(std::priority_queue<Supply>& pq, std::vector<Supply>& supplies) {
-    double totalCostUSD = 0.0;
-    while (!pq.empty()) {
-        Supply current = pq.top();
-        pq.pop();
-
-        // Search for the item in the available supplies
-        bool found = false;
-        for (auto& supply : supplies) {
-            if (supply.name == current.name) {
-                found = true;
-                if (supply.quantity >= current.quantity) {
-                    supply.quantity -= current.quantity;
-                    totalCostUSD += current.quantity * supply.cost;  // Calculate total cost in USD
-                    std::cout << "Request for " << current.name << " processed. "
-                              << current.quantity << " units provided.\n";
-                } else {
-                    totalCostUSD += supply.quantity * supply.cost;  // Only charge for available units
-                    std::cout << "Not enough " << current.name << " in storage. "
-                              << "Only " << supply.quantity << " units available.\n";
-                    supply.quantity = 0; // Deplete the stock
-                }
-                break;
-            }
-        }
-
-        if (!found) {
-            std::cout << "Item " << current.name << " not found in storage.\n";
-        }
-    }
-
-    // Convert the total cost from USD to INR
-    double totalCostINR = totalCostUSD * 80;
-    std::cout << "Total cost for the processed requests: " << totalCostINR << "\n";
+void optimizeStorage(std::vector<Supply>& supplies) {
+    // Sorting supplies by quantity to optimize storage (greedy approach)
+    std::sort(supplies.begin(), supplies.end());
+    std::cout << "\nOptimized Storage (sorted by quantity):\n";
+    displayStorage(supplies);
 }
 
-// Main function
+void checkStorageCapacity(const std::vector<Supply>& supplies, double totalCapacity) {
+    double usedCapacity = 0;
+    for (const auto& supply : supplies) {
+        usedCapacity += supply.storageSpaceRequired;
+    }
+    std::cout << (usedCapacity > totalCapacity ? "Capacity exceeded!" : "Storage OK.")
+              << " Used: " << usedCapacity << " ft^2\n";  // Feet squared
+}
+
+void addItem(std::vector<Supply>& storage) {
+    Supply newItem;
+    std::cout << "\nEnter item details:\n";
+    std::cout << "Name: ";
+    std::cin >> newItem.name;
+    std::cout << "Quantity: ";
+    std::cin >> newItem.quantity;
+    std::cout << "Cost per unit: ";
+    std::cin >> newItem.cost;
+    std::cout << "Storage space required (in square feet): ";
+    std::cin >> newItem.storageSpaceRequired;
+    std::cout << "Storage location: ";
+    std::cin >> newItem.storageLocation;
+
+    storage.push_back(newItem);
+    std::cout << "Item added successfully!\n";
+}
+
+void removeItem(std::vector<Supply>& storage) {
+    std::string itemName;
+    std::cout << "\nEnter the name of the item to remove: ";
+    std::cin >> itemName;
+
+    auto it = std::remove_if(storage.begin(), storage.end(), [&itemName](const Supply& supply) {
+        return supply.name == itemName;
+    });
+
+    if (it != storage.end()) {
+        storage.erase(it, storage.end());
+        std::cout << "Item removed successfully!\n";
+    } else {
+        std::cout << "Item not found.\n";
+    }
+}
+
 int main() {
-    std::vector<Supply> supplies = {
-        {"Bandages", 50, 3, 1.5},      // $1.5 per bandage
-        {"Gloves", 200, 2, 0.5},       // $0.5 per pair of gloves
-        {"Masks", 100, 5, 2.0},        // $2.0 per mask
-        {"Sanitizers", 80, 4, 3.0}     // $3.0 per sanitizer bottle
+    std::vector<Supply> storage = {
+        {"Bandages", 50, 1.5, 5.0, "Shelf A1"},  // 5 ft^2 for Bandages
+        {"Gloves", 200, 0.5, 4.0, "Shelf B2"},   // 4 ft^2 for Gloves
+        {"Masks", 100, 2.0, 6.0, "Shelf C3"},    // 6 ft^2 for Masks
+        {"Sanitizers", 80, 3.0, 5.5, "Shelf D4"} // 5.5 ft^2 for Sanitizers
     };
 
-    std::cout << "Initial Storage Management:\n";
-    displaySupplies(supplies);
+    int choice;
+    double totalCapacity = 30.0;  // Total storage capacity available (in square feet)
 
-    // Sort supplies by priority
-    std::sort(supplies.begin(), supplies.end(), [](const Supply& a, const Supply& b) {
-        return a.priority > b.priority; // Descending order
-    });
-    std::cout << "\nSupplies After Sorting by Priority:\n";
-    displaySupplies(supplies);
+    do {
+        std::cout << "\n\nStorage Management System Menu:\n";
+        std::cout << "1. Display Storage\n";
+        std::cout << "2. Optimize Storage\n";
+        std::cout << "3. Check Storage Capacity\n";
+        std::cout << "4. Add Item\n";
+        std::cout << "5. Remove Item\n";
+        std::cout << "6. Exit\n";
+        std::cout << "Enter your choice: ";
+        std::cin >> choice;
 
-    // Create a priority queue
-    std::priority_queue<Supply> pq;
-
-    // Display available supplies before taking user input
-    std::cout << "\nAvailable Supplies for Request:\n";
-    displaySupplies(supplies);
-
-    // Simulating user input
-    std::string itemName;
-    int itemQuantity;
-    std::cout << "\nEnter the item name for the supply request: ";
-    std::cin >> itemName;
-    std::cout << "Enter the quantity needed: ";
-    std::cin >> itemQuantity;
-
-    // Add user input to priority queue with default priority
-    int defaultPriority = 3; // Default priority for simplicity
-    pq.push({itemName, itemQuantity, defaultPriority, 0.0}); // Cost will be updated during processing
-
-    std::cout << "\nProcessing Requests in Priority Order:\n";
-    processRequests(pq, supplies);
-
-    // Display remaining supplies after processing the request
-    std::cout << "\nRemaining Storage After Request:\n";
-    displaySupplies(supplies);
+        switch (choice) {
+            case 1:
+                displayStorage(storage);
+                break;
+            case 2:
+                optimizeStorage(storage);
+                break;
+            case 3:
+                checkStorageCapacity(storage, totalCapacity);
+                break;
+            case 4:
+                addItem(storage);
+                break;
+            case 5:
+                removeItem(storage);
+                break;
+            case 6:
+                std::cout << "Exiting program...\n";
+                break;
+            default:
+                std::cout << "Invalid choice. Please try again.\n";
+        }
+    } while (choice != 6);
 
     return 0;
 }
