@@ -6,7 +6,7 @@ using namespace std;
 class Supplier {
 public:
     string name;
-    int cost;  // Rating on a scale of 1 to 10 (1 = highest cost, 10 = lowest cost)
+    int cost;  // Cost in thousands of rupees
     int quality;  // Rating on a scale of 1 to 10 (1 = lowest quality, 10 = highest quality)
     int deliveryTime;  // Rating on a scale of 1 to 10 (1 = longest time, 10 = quickest time)
 
@@ -17,48 +17,68 @@ public:
         this->deliveryTime = deliveryTime;
     }
 
-    // Make this method const since it doesn't modify the object state
-    double calculateScore(double costWeight, double qualityWeight, double deliveryWeight) const {
-        return (cost * costWeight) + (quality * qualityWeight) + (deliveryTime * deliveryWeight);
+    double calculateScore() const {
+        return quality * 0.6 + deliveryTime * 0.4;  // Weighted score
     }
 };
 
 int main() {
-    vector<Supplier> suppliers;
+    vector<Supplier> suppliers = {
+        Supplier("HealthEquip", 50, 9, 8),
+        Supplier("MediTech", 60, 8, 7),
+        Supplier("MedSupplyCo", 40, 7, 9),
+        Supplier("PharmaSource", 70, 10, 6),
+        Supplier("CareLogix", 30, 6, 10)
+    };
 
-    // Input data for suppliers: name, cost, quality, delivery time
-    suppliers.push_back(Supplier("HealthEquip", 8, 9, 7)); // Example values for HealthEquip
-    suppliers.push_back(Supplier("MedSupplyCo", 7, 8, 6)); // Example values for MedSupplyCo
-    suppliers.push_back(Supplier("MediTech", 6, 7, 5)); // Example values for MediTech
+    int budget;
+    cout << "Enter the total budget (in thousands of rupees): ";
+    cin >> budget;
 
-    // Weights for cost, quality, and delivery time
-    double costWeight = 0.5;
-    double qualityWeight = 0.3;
-    double deliveryWeight = 0.2;
+    int n = suppliers.size();
+    vector<vector<double>> dp(n + 1, vector<double>(budget + 1, 0));
+    vector<vector<bool>> selected(n + 1, vector<bool>(budget + 1, false));
 
-    // Display header
-    cout << "Supplier Selection Results:\n";
-    cout << "------------------------------------\n";
+    // Knapsack DP algorithm
+    for (int i = 1; i <= n; ++i) {
+        for (int b = 1; b <= budget; ++b) {
+            if (suppliers[i - 1].cost <= b) {
+                double includeScore = dp[i - 1][b - suppliers[i - 1].cost] + suppliers[i - 1].calculateScore();
+                double excludeScore = dp[i - 1][b];
 
-    // Calculate and display scores for each supplier
-    for (const auto& supplier : suppliers) {
-        double score = supplier.calculateScore(costWeight, qualityWeight, deliveryWeight);
-        cout << supplier.name << " Score: " << score << "\n";
-    }
-
-    // Find the best supplier
-    Supplier bestSupplier = suppliers[0];
-    double bestScore = bestSupplier.calculateScore(costWeight, qualityWeight, deliveryWeight);
-
-    for (const auto& supplier : suppliers) {
-        double score = supplier.calculateScore(costWeight, qualityWeight, deliveryWeight);
-        if (score > bestScore) {
-            bestScore = score;
-            bestSupplier = supplier;
+                if (includeScore > excludeScore) {
+                    dp[i][b] = includeScore;
+                    selected[i][b] = true;
+                } else {
+                    dp[i][b] = excludeScore;
+                }
+            } else {
+                dp[i][b] = dp[i - 1][b];
+            }
         }
     }
 
-    cout << "\nBest Supplier: " << bestSupplier.name << " with a score of " << bestScore << "\n";
+    // Backtracking to find the selected suppliers
+    vector<Supplier> selectedSuppliers;
+    int remainingBudget = budget;
+    double maxScore = dp[n][budget];
+
+    for (int i = n; i > 0 && remainingBudget > 0; --i) {
+        if (selected[i][remainingBudget]) {
+            selectedSuppliers.push_back(suppliers[i - 1]);
+            remainingBudget -= suppliers[i - 1].cost;
+        }
+    }
+
+    // Output results
+    cout << "\nMaximum Score Achieved: " << maxScore << "\n";
+    cout << "Selected Suppliers:\n";
+    for (const auto& supplier : selectedSuppliers) {
+        cout << "Name: " << supplier.name
+             << ", Cost: " << supplier.cost << "k"
+             << ", Quality: " << supplier.quality
+             << ", Delivery Time: " << supplier.deliveryTime << "\n";
+    }
 
     return 0;
 }
